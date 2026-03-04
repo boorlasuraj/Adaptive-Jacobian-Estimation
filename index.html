@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adaptive Jacobian Estimation | Project Documentation</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    svg: {
+      fontCache: 'global'
+    }
+  };
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+/* ===== ACADEMIC JOURNAL RESET & TYPOGRAPHY ===== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; font-size: 16px; background: #e5e7eb; }
+
+body {
+  font-family: 'Crimson Pro', serif;
+  color: #111;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  line-height: 1.75;
+}
+
+/* ===== HEADER ===== */
+.top-bar {
+  background: #0f172a; color: #f8fafc; padding: 0 3rem; height: 70px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 1000; font-family: 'Inter', sans-serif;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-bottom: 3px solid #3b82f6;
+}
+
+.top-bar h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin: 0 auto; text-align: center; width: 100%;}
+
+/* ===== LAYOUT & NAVIGATION ===== */
+.container { display: flex; flex: 1; max-width: 1500px; margin: 0 auto; width: 100%; background: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.05); }
+
+.sidebar {
+  width: 320px; background: #f8fafc; padding: 3rem 2rem;
+  border-right: 1px solid #cbd5e1; position: sticky;
+  top: 70px; height: calc(100vh - 70px); overflow-y: auto;
+  font-family: 'Inter', sans-serif;
+}
+.sidebar ul { list-style: none; }
+.sidebar li { margin-bottom: 1rem; }
+.sidebar a { text-decoration: none; color: #334155; font-weight: 500; font-size: 0.95rem; transition: color 0.2s; display: block; padding-left: 0.5rem; border-left: 2px solid transparent; }
+.sidebar a:hover { color: #2563eb; border-left: 2px solid #2563eb; }
+
+/* ===== MAIN CONTENT ===== */
+.content { flex: 1; padding: 4rem 6rem; max-width: 1180px; background: #fff; }
+
+/* Academic Abstract Box */
+.abstract {
+  background: #fff; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a;
+  padding: 2.5rem 0; margin-bottom: 4rem; text-align: justify; font-style: italic; font-size: 1.15rem;
+}
+.abstract strong { font-family: 'Inter', sans-serif; font-style: normal; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1.5px; color: #0f172a; display: block; margin-bottom: 1rem; font-weight: 700; }
+
+/* Typography */
+h2 { font-family: 'Inter', sans-serif; font-size: 1.9rem; color: #0f172a; margin: 4rem 0 1.5rem; padding-bottom: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+h3 { font-family: 'Inter', sans-serif; font-size: 1.3rem; color: #1e293b; margin: 3rem 0 1rem; font-weight: 600; border-left: 4px solid #3b82f6; padding-left: 1rem; }
+p { margin-bottom: 1.5rem; font-size: 1.2rem; color: #111; text-align: justify; text-indent: 2rem; }
+p:first-of-type { text-indent: 0; } 
+
+/* Lit Review Specific Styling */
+.lit-review-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 2rem; margin-bottom: 2rem; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+.lit-review-card h4 { font-family: 'Inter', sans-serif; font-size: 1.15rem; color: #0f172a; margin-bottom: 1rem; }
+.lit-review-card p { text-indent: 0; font-size: 1.1rem; margin-bottom: 0.8rem; }
+.lit-review-card strong { font-family: 'Inter', sans-serif; font-size: 0.95rem; color: #334155; }
+
+/* Varied Styling Blocks */
+.theorem-box {
+  background: #f1f5f9; border: 1px solid #cbd5e1; border-left: 5px solid #2563eb; padding: 2rem; margin: 3rem 0;
+}
+.theorem-box h4 { font-family: 'Inter', sans-serif; color: #1d4ed8; margin-bottom: 1rem; font-size: 1.05rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+.theorem-box p { text-indent: 0; margin-bottom: 0; }
+
+.math-block {
+  font-family: 'IBM Plex Mono', monospace; overflow-x: auto; margin: 3rem 0; text-align: center; font-size: 1.3rem; padding: 2rem 0; background: #fff; border-top: 1px dashed #cbd5e1; border-bottom: 1px dashed #cbd5e1;
+}
+
+ul.bullet-list { margin-bottom: 2.5rem; padding-left: 2rem; font-size: 1.15rem; }
+ul.bullet-list li { margin-bottom: 1rem; text-align: justify; }
+
+/* Code Block Styling */
+pre { background: #0f172a; color: #f8fafc; padding: 1.5rem; border-radius: 4px; overflow-x: auto; font-family: 'IBM Plex Mono', monospace; font-size: 0.9rem; margin: 2rem 0; }
+code { font-family: 'IBM Plex Mono', monospace; }
+
+/* Figures and Images */
+figure {
+  margin: 4rem 0; background: #fff; padding: 2rem; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+}
+figure img {
+  width: 100%; max-width: 900px; height: auto; display: block; margin: 0 auto; border: 1px solid #94a3b8;
+}
+figcaption {
+  font-family: 'Inter', sans-serif; font-size: 0.95rem; color: #475569; text-align: justify; margin-top: 1.5rem; line-height: 1.6; border-top: 1px solid #e2e8f0; padding-top: 1rem;
+}
+figcaption b { color: #0f172a; font-weight: 700; }
+
+/* Academic Data Table */
+.data-table-wrapper { overflow-x: auto; margin: 3rem 0; border: 1px solid #cbd5e1; }
+table.academic-table {
+  width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 0.95rem; text-align: right; background: #fff;
+}
+table.academic-table caption { font-family: 'Inter', sans-serif; font-weight: 600; text-align: left; padding: 1rem; background: #f8fafc; border-bottom: 1px solid #cbd5e1; color: #0f172a; }
+table.academic-table thead { background: #0f172a; color: #fff; font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.85rem; }
+table.academic-table th, table.academic-table td { padding: 1.2rem 1rem; border-bottom: 1px solid #e2e8f0; }
+table.academic-table th { font-weight: 600; text-align: center; }
+table.academic-table tbody tr:nth-child(even) { background: #f8fafc; }
+table.academic-table tbody td { color: #334155; }
+
+/* Team Section */
+.team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem; margin-top: 3rem; }
+.team-member { background: #fff; border: 1px solid #cbd5e1; padding: 2rem; border-top: 4px solid #0f172a; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+.team-member h4 { font-family: 'Inter', sans-serif; color: #0f172a; font-size: 1.15rem; margin-bottom: 0.5rem; font-weight: 700; }
+.team-member p { color: #64748b; font-size: 1rem; font-family: 'IBM Plex Mono', monospace; margin: 0; text-indent: 0; text-align: center; }
+
+.footer { text-align: center; padding: 3rem; background: #0f172a; color: #94a3b8; font-family: 'Inter', sans-serif; font-size: 0.95rem; border-top: 1px solid #1e293b; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>22AIE214 | Project: Adaptive Jacobian Estimation</h1>
+</div>
+
+<div class="container">
+  <aside class="sidebar">
+    <ul>
+      <li><a href="#abstract">Abstract</a></li>
+      <li><a href="#introduction">I. Introduction & Motivation</a></li>
+      <li><a href="#literature">II. Extensive Literature Review</a></li>
+      <li><a href="#rigid-fk">III. Rigid-Body Kinematics (Baseline)</a></li>
+      <li><a href="#rigid-ik">IV. Iterative IK & Lyapunov Stability</a></li>
+      <li><a href="#rigid-fault">V. Rigid Fault Tolerance</a></li>
+      <li><a href="#rigid-hardware">VI. Rigid Hardware Deployment</a></li>
+      <li><a href="#elastodynamics">VII. Volumetric Elastodynamics (Soft)</a></li>
+      <li><a href="#jacobian">VIII. Model-Free Estimation (Soft IK)</a></li>
+      <li><a href="#control">IX. Adaptive Control & Locomotion</a></li>
+      <li><a href="#simulation">X. SOFA Engine Architecture</a></li>
+      <li><a href="#telemetry">XI. Raw Telemetry Acquisition</a></li>
+      <li><a href="#results">XII. Empirical Results & Recovery</a></li>
+      <li><a href="#soft-hardware">XIII. Soft Hardware Translation</a></li>
+      <li><a href="#references">XIV. References</a></li>
+      <li><a href="#contributors">XV. Project Contributors</a></li>
+    </ul>
+  </aside>
+
+  <main class="content">
+    
+    <section id="abstract" class="abstract">
+      <strong>Abstract</strong>
+      This thesis presents a comparative framework for fault-tolerant control, bridging classical rigid-body mechanics with hyper-elastic volumetric soft robotics. We establish an analytical Jacobian baseline utilizing a physical 2R redundant manipulator capable of online trajectory reconfiguration upon motor failure. Moving beyond the limits of closed-form mathematics, we then propose a Model-Free Adaptive Controller utilizing a continuous Broyden Rank-1 update algorithm for continuum structures. Executed within the rigorous SOFA (Simulation Open Framework Architecture) FEM engine, we demonstrate that upon catastrophic tendon failure, the numerical observer actively recognizes broken elastodynamics without prior modeling and autonomously recalculates asymmetric inverse kinematics to survive the mission.
+    </section>
+
+    <section id="introduction">
+      <h2>I. Introduction & Motivation</h2>
+      <p>Traditional rigid-body robotics heavily relies on articulated linkages governed by finite, closed-form inverse kinematics (e.g., Denavit-Hartenberg parameters). While highly precise in structured factory settings, rigid manipulators are vulnerable to "Joint Locks." When a motor fails, the pre-calculated kinematic map shatters, leaving the robot uncontrollable unless redundancy resolution algorithms are deployed.</p>
+      
+      <p>Continuum soft robotics solves environmental constraints by replacing discrete joints with hyper-elastic volumetric bodies (e.g., silicone elastomers). However, this introduces a severe mathematical challenge: <strong>Infinite Degrees of Freedom (DOF)</strong>. Because the entire body continuously deforms under gravity, non-linear stiffness, and dynamic contact friction, deriving an exact, global analytical Jacobian matrix is mathematically impossible in real-time.</p>
+      
+      <div class="theorem-box">
+        <h4>The Core Objective</h4>
+        <p>The motivation of this project is two-fold. First, to mathematically define and physically deploy a Jacobian Transpose controller on a rigid 2R manipulator to prove analytical fault-tolerance. Second, to scale this paradigm into the unmodeled continuum space, building a soft robot that utilizes online numerical optimization to dynamically learn its own broken kinematics and autonomously counter-steer to survive a severed tendon.</p>
+      </div>
+    </section>
+
+    <section id="literature">
+      <h2>II. Extensive Literature Review & State-of-the-Art</h2>
+      <p>To establish fault tolerance, classical rigid robotics relies heavily on Fault Detection and Isolation (FDI) observers coupled with hardware redundancy. However, soft robotics cannot isolate faults in this manner because an actuator failure fundamentally mutates the continuous physical shape of the entire plant. The following review details the state-of-the-art literature validating our methodology.</p>
+
+      <h3>Part I: Rigid Manipulators (Contrasting Fault-Tolerance Paradigms)</h3>
+
+      <div class="lit-review-card">
+        <h4>1. "Data-Driven Adaptive Jacobian Estimation for Uncalibrated Rigid Manipulators"</h4>
+        <p><strong>Date:</strong> 2023 | <strong>Author(s):</strong> Li, J., et al. (IEEE Transactions on Industrial Electronics)</p>
+        <p><strong>Topic/Methodology:</strong> Addresses rigid manipulators where the analytical kinematic model is unavailable, uncalibrated, or suddenly altered due to structural damage. The paper utilizes a data-driven approach to numerically estimate the Jacobian matrix.</p>
+      </div>
+
+      <div class="lit-review-card">
+        <h4>2. "Fault-Tolerant Kinematic Control of Redundant Manipulators via Adaptive Pseudo-Inverse Jacobians"</h4>
+        <p><strong>Date:</strong> 2022 | <strong>Author(s):</strong> Wang, H., et al.</p>
+        <p><strong>Topic/Methodology:</strong> Focuses on resolving sudden actuator failures (e.g., locked joints) in redundant rigid manipulators. When a joint fails, the standard Jacobian loses rank. This methodology reconfigures the pseudo-inverse Jacobian matrix online to route movement commands to surviving actuators.</p>
+      </div>
+
+      <h3>Part II: Continuum and Soft Robotics (The Primary Domain)</h3>
+      
+      <div class="lit-review-card">
+        <h4>3. "A Generalized Adaptive Jacobian Controller for Soft Robots"</h4>
+        <p><strong>Date:</strong> 2024 | <strong>Author(s):</strong> Chen, F., et al. (arXiv / IEEE)</p>
+        <p><strong>Topic/Methodology:</strong> Traditional Jacobian controllers fail on soft robots due to material hysteresis. This research proposes an adaptive generalized controller that avoids massive dataset requirements, proving numerical updates are highly effective for hyper-elastic systems.</p>
+      </div>
+
+      <div class="lit-review-card">
+        <h4>4. "Model-Based Control of a Continuum Manipulator with Online Jacobian Error Compensation"</h4>
+        <p><strong>Date:</strong> 2024 | <strong>Author(s):</strong> Mo, X., et al.</p>
+        <p><strong>Topic/Methodology:</strong> Introduces a framework utilizing an estimation filter to compensate for Jacobian mapping errors in real-time, explicitly validating the Broyden rank-1 update rule as an industry standard for bridging the gap between expected and actual continuum dynamics.</p>
+      </div>
+    </section>
+
+    <section id="rigid-fk">
+      <h2>III. Rigid-Body Kinematics (The Analytical Baseline)</h2>
+      <p>Before advancing to infinite-DOF soft bodies, we establish mathematical rigor using a classical 2-Link (2R) planar robotic arm. In this domain, the geometry of the system is absolute, allowing us to derive closed-form analytical equations.</p>
+      
+      <h3>Forward Kinematics</h3>
+      <p>For a 2R arm with rigid link lengths $l_1$ and $l_2$, actuated by joint angles $\theta_1$ (Shoulder) and $\theta_2$ (Elbow), the position of the end-effector $(x, y)$ in Cartesian space is defined by standard trigonometric projection:</p>
+      
+      <div class="math-block">
+        $$x = l_1 \cos(\theta_1) + l_2 \cos(\theta_1 + \theta_2)$$
+        $$y = l_1 \sin(\theta_1) + l_2 \sin(\theta_1 + \theta_2)$$
+      </div>
+
+      <h3>The Analytical Jacobian</h3>
+      <p>To control the arm in Task Space (e.g., commanding coordinates rather than angles), we must map end-effector velocities $(\dot{x}, \dot{y})$ to joint velocities $(\dot{\theta_1}, \dot{\theta_2})$. This mapping is the Jacobian matrix $J$, constructed from the partial derivatives of the Forward Kinematics equations:</p>
+
+      <div class="math-block">
+        $$J = \begin{bmatrix} \frac{\partial x}{\partial \theta_1} & \frac{\partial x}{\partial \theta_2} \\[8pt] \frac{\partial y}{\partial \theta_1} & \frac{\partial y}{\partial \theta_2} \end{bmatrix}$$
+      </div>
+
+      <p>Evaluating these derivatives yields the explicit 2x2 Analytical Jacobian for the physical plant:</p>
+
+      <div class="math-block">
+        $$J(\mathbf{q}) = \begin{bmatrix} -l_1 \sin\theta_1 - l_2 \sin(\theta_1 + \theta_2) & -l_2 \sin(\theta_1 + \theta_2) \\ l_1 \cos\theta_1 + l_2 \cos(\theta_1 + \theta_2) & l_2 \cos(\theta_1 + \theta_2) \end{bmatrix}$$
+      </div>
+    </section>
+
+    <section id="rigid-ik">
+      <h2>IV. Iterative Inverse Kinematics & Lyapunov Stability (Rigid)</h2>
+      <p>The Forward Kinematics function $\mathbf{x} = \mathcal{F}(\mathbf{q})$ is highly non-linear due to the presence of transcendental trigonometric functions. Consequently, it is mathematically impossible to algebraically divide by $\mathcal{F}$ to isolate the required joint angles. We must rely on the Jacobian matrix, which provides a first-order Taylor Series linear approximation of this non-linear kinematic curve.</p>
+      
+      <p>Because a linear approximation is only valid for an infinitesimally small step, the controller must operate as a high-frequency discrete integration loop. The architecture evaluates the physical state, calculates the local gradient, steps slightly down that gradient, and repeats.</p>
+      
+
+      <h3>The Iterative Step Derivation</h3>
+      <ul class="bullet-list">
+        <li><strong>Step 1: The Objective Function (Error).</strong> The loop begins by calculating the Cartesian error vector $\mathbf{e}_k$ at discrete time step $k$:<br>
+        <div class="math-block">$$\mathbf{e}_k = \mathbf{x}_{target} - \mathcal{F}(\mathbf{q}_k)$$</div></li>
+        
+        <li><strong>Step 2: The Differential Mapping.</strong> The relationship between the velocity of the end-effector and the joints is defined by the Jacobian:<br>
+        <div class="math-block">$$\dot{\mathbf{x}} = \mathbf{J}(\mathbf{q}_k) \dot{\mathbf{q}}$$</div></li>
+
+        <li><strong>Step 3: The Kinematic Inversion Trap.</strong> Naive inversion ($\dot{\mathbf{q}} = \mathbf{J}^{-1} \mathbf{e}_k$) is fundamentally unstable. If the manipulator reaches a geometric boundary (a singularity), the determinant of $\mathbf{J}$ approaches zero, causing the required joint velocities to explode to infinity, resulting in catastrophic hardware failure.</li>
+
+        <li><strong>Step 4: The Jacobian Transpose Solution.</strong> To bypass singular inversion, we utilize the Jacobian Transpose ($\mathbf{J}^T$). The control law models the Cartesian error as a virtual physical spring pulling on the end-effector:<br>
+        <div class="math-block">$$\Delta \mathbf{q}_k = \alpha \mathbf{J}(\mathbf{q}_k)^T \mathbf{e}_k$$</div>
+        Where $\alpha$ represents the proportional step size (gain).</li>
+
+        <li><strong>Step 5: Numerical Integration.</strong> The calculated joint deltas are applied via an Euler integration step to advance the physical plant to state $k+1$:<br>
+        <div class="math-block">$$\mathbf{q}_{k+1} = \mathbf{q}_k + \Delta \mathbf{q}_k$$</div></li>
+      </ul>
+
+      <div class="theorem-box">
+        <h4> Lyapunov Stability Analysis</h4>
+        <p>To mathematically guarantee that the Jacobian Transpose method will perpetually decrease the trajectory error without exploding at a singularity, we define a Lyapunov Candidate Function representing the "energy" of the system as the squared error:</p>
+        <div class="math-block">$$V(\mathbf{q}) = \frac{1}{2} \mathbf{e}^T \mathbf{e}$$</div>
+        <p>For the system to be asymptotically stable, the time derivative of the energy ($\dot{V}$) must be strictly negative or zero. Taking the time derivative yields $\dot{V} = \mathbf{e}^T \dot{\mathbf{e}}$. Since the target is stationary, the change in error is entirely dependent on the end-effector's motion: $\dot{\mathbf{e}} = -\dot{\mathbf{x}} = -\mathbf{J}\dot{\mathbf{q}}$. Substituting this back into the energy derivative gives:</p>
+        <div class="math-block">$$\dot{V} = -\mathbf{e}^T \mathbf{J} \dot{\mathbf{q}}$$</div>
+        <p>Finally, we substitute our proposed Jacobian Transpose control law ($\dot{\mathbf{q}} = \alpha \mathbf{J}^T \mathbf{e}$) into the equation:</p>
+        <div class="math-block">$$\dot{V} = -\mathbf{e}^T \mathbf{J} (\alpha \mathbf{J}^T \mathbf{e}) = -\alpha (\mathbf{J}^T \mathbf{e})^T (\mathbf{J}^T \mathbf{e})$$</div>
+        <div class="math-block">$$\dot{V} = -\alpha ||\mathbf{J}^T \mathbf{e}||^2 \leq 0$$</div>
+        <p>Because $\dot{V}$ is strictly less than or equal to zero for all configurations, it is irrevocably proven that the Transpose control law will continually minimize the task-space error without mathematical singularity detonation.</p>
+        
+      </div>
+    </section>
+
+    <section id="rigid-fault">
+      <h2>V. Rigid Fault Tolerance & Redundancy Resolution</h2>
+      <p>The strength of the aforementioned Jacobian-based loop lies in its iterative robustness, enabling dynamic fault recovery.</p>
+      
+      <div class="theorem-box">
+        <h4>Physical Fault Injection: The "Joint Lock" Protocol</h4>
+        <p>To prove fault tolerance, we artificially inject a "Joint Lock" during a circular trajectory tracking mission. At step 50, the Elbow joint ($\theta_2$) is mathematically and physically frozen at a constant angle.</p>
+        <p>Because the control law evaluates $\mathbf{e}_k$ continuously, the position error instantly spikes upon failure. The matrix multiplication $\mathbf{J}^T \mathbf{e}$ automatically routes the compensatory calculation into the surviving Shoulder joint ($\theta_1$). The shoulder dynamically alters its trajectory—swinging in a wider, non-linear arc—to drag the end-effector back onto the target circle without requiring a pre-programmed emergency sub-routine.</p>
+      </div>
+    </section>
+
+    <section id="rigid-hardware">
+      <h2>VI. Rigid Hardware Deployment Architecture</h2>
+      <p>Moving from math to physical reality introduces severe constraints regarding power continuity and signal integrity. The 2R Jacobian controller is deployed across a decoupled Python-to-C++ architecture.</p>
+
+      <h3>Sim-to-Real Hardware Pipeline</h3>
+      <ul class="bullet-list">
+        <li><strong>The Brain (Python Host):</strong> The host PC calculates the Analytical Jacobian, measures trajectory error, and generates the $\Delta \theta$ corrections at 20Hz.</li>
+        <li><strong>The Nervous System (Serial Payload):</strong> The required angles are packetized into a low-latency string format (e.g., <code>&lt;90,45,135,90&gt;</code>) and transmitted over USB via the PySerial protocol.</li>
+        <li><strong>The Slave Driver (Arduino Uno):</strong> The C++ firmware runs a non-blocking buffer to parse the payload, instantly converting numeric data into high-frequency PWM signals for the servos.</li>
+      </ul>
+
+      <h3>Power Integrity & The Brownout Limit</h3>
+      <p>A critical finding during physical deployment was the necessity of voltage isolation. High-torque MG996R servos draw massive stall currents ($>1.5\text{A}$) when calculating rapid Jacobian compensations. Attempting to draw this current through the Arduino's internal regulator results in a processor brownout. The final architecture mandates an isolated 5V/2A external DC power rail, stabilized by a $1000\mu\text{F}$ electrolytic tank capacitor, tied to the microcontroller via a strict Common Ground connection to maintain PWM signal reference.</p>
+    </section>
+
+    <section id="elastodynamics">
+      <h2>VII. Volumetric Elastodynamics (Soft-Body FK)</h2>
+      <p><em>Note: In continuum mechanics, traditional analytical Forward Kinematics $ \mathbf{x} = \mathcal{F}(\mathbf{q}) $ are obsolete. The physical state mapping is solved iteratively via partial differential equations.</em></p>
+      
+      <p>Transitioning from rigid links to hyper-elastic rubber, our architecture models the robot as a fully 3D volume. The SOFA physics engine resolves the following Partial Differential Equation (PDE) at every $0.02s$ time step:</p>
+      
+      <div class="math-block">
+        $$\mathbf{M} \mathbf{\ddot{q}} + \mathbf{C} \mathbf{\dot{q}} + \mathbf{K}(\mathbf{q})\mathbf{q} = \mathbf{F}_{ext} + \mathbf{H}^T \boldsymbol{\lambda}$$
+      </div>
+      
+      <ul class="bullet-list">
+        <li><strong>Inertia ($\mathbf{M} \mathbf{\ddot{q}}$):</strong> Where $\mathbf{M}$ is the mass matrix constructed from the $1100 \text{ kg/m}^3$ density of the silicone.</li>
+        <li><strong>Non-Linear Stiffness ($\mathbf{K}(\mathbf{q})\mathbf{q}$):</strong> The stiffness matrix utilizing a <em>Corotational FEM</em> formulation. Unlike standard linear Cauchy strain, the Corotational method actively extracts the rigid-body rotation of every single tetrahedron before calculating local strain, preventing volume inflation during bending.</li>
+        <li><strong>Actuation Constraints ($\mathbf{H}^T \boldsymbol{\lambda}$):</strong> The Lagrangian constraint forces ($\boldsymbol{\lambda}$) exerted by the internal pulling cables.</li>
+      </ul>
+    </section>
+
+    <section id="jacobian">
+      <h2>VIII. Model-Free Estimation (Soft-Body IK)</h2>
+      <p>Because the physical continuum plant is treated as an unknowable black box due to dynamic floor collisions, Inverse Kinematics is achieved via dynamic numerical gradient estimation rather than analytical derivation.</p>
+      
+      <div class="theorem-box">
+        <h4>The Broyden Optimization Derivation</h4>
+        <p>Assuming a locally linear relationship governed by the Secant Equation $\Delta \mathbf{x}_k = \mathbf{J}_k \Delta \mathbf{u}_k$, we utilize the <strong>Broyden Optimization Algorithm</strong>. It seeks the matrix $\mathbf{J}_{k+1}$ that minimizes the Frobenius norm $||\mathbf{J}_{k+1} - \mathbf{J}_k||_F$ subject to the recent physical observation. Utilizing Lagrange multipliers, the analytical solution yields:</p>
+      </div>
+
+      <div class="math-block">
+        $$\mathbf{J}_{k+1} = \mathbf{J}_k + \alpha \frac{(\Delta \mathbf{x}_k - \mathbf{J}_k \Delta \mathbf{u}_k)\Delta \mathbf{u}_k^T}{||\Delta \mathbf{u}_k||^2 + \epsilon}$$
+      </div>
+
+      <p>Within our estimator script, this update is implemented with a relaxation parameter $\alpha = 0.6$ and a singularity safeguard $\epsilon = 10^{-6}$ to prevent division-by-zero during steady states.</p>
+    </section>
+
+    <section id="control">
+      <h2>IX. Adaptive Control & Locomotion</h2>
+      <h3>Anisotropic Locomotion Engine</h3>
+      <p>A biological snake slithering symmetrically on a perfectly uniform surface achieves exactly zero forward motion (the Scallop Theorem). To generate thrust, our controller intercepts the velocity matrix and damps lateral slip to simulate directional friction scales:</p>
+      
+      <div class="math-block">
+        $$\mathbf{v}_{damped} = \mathbf{v} - (0.01 \mathbf{v}_{fwd} + 0.80 \mathbf{v}_{lat})$$
+      </div>
+
+      <h3>Closed-Loop Steering</h3>
+      <p>Once the observer updates the matrix reflecting physical damage, the control law applies a proportional gain ($K_p = 3.0$) to the inverse mapping to drive the trajectory error $x_{err}$ back to zero:</p>
+
+      <div class="math-block">
+        $$\Delta u_{bias} = -K_p \frac{z_{head}}{J_{11}}$$
+      </div>
+    </section>
+
+    <section id="simulation">
+      <h2>X. SOFA Engine Architecture</h2>
+      <p>The soft plant is simulated using <strong>SOFA v25.12</strong>, leveraging a highly optimized Multi-Model Scene Graph.</p>
+      <ul class="bullet-list">
+        <li><strong>Mechanical Model:</strong> A dense tetrahedral volume governed by a <code>TetrahedronFEMForceField</code> ($E=10^5$ Pa, $\nu=0.45$).</li>
+        <li><strong>Actuation Model:</strong> Four 1D <code>CableConstraint</code> polylines embedded at precise 8mm radial offsets.</li>
+        <li><strong>Collision Pipeline:</strong> Stripped strictly to <code>TriangleCollisionModel</code> nodes to eradicate I/O bottlenecking during the narrow-phase intersection checks.</li>
+      </ul>
+    </section>
+
+    <section id="telemetry">
+      <h2>XI. Raw Telemetry & Data Acquisition</h2>
+      <p>The system's fault-tolerance is proven through an asynchronous telemetry pipeline. The C++ Python controller flushes the cognitive state variables to <code>snake_log.csv</code> at 50Hz, demonstrating the active prediction of the $J_{11}$ element prior to structural failure.</p>
+      
+      <div class="data-table-wrapper">
+        <table class="academic-table">
+          <caption>Table 1: Early Integration Phase Telemetry Extraction</caption>
+          <thead>
+            <tr>
+              <th>Time (s)</th>
+              <th>$Z$-Drift (m)</th>
+              <th>Steering Bias (m)</th>
+              <th>Jacobian ($J_{11}$)</th>
+              <th>Left Cable (m)</th>
+              <th>Right Cable (m)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>0.020</td>
+              <td>-0.003429</td>
+              <td>0.000205</td>
+              <td>1.000000</td>
+              <td>0.004955</td>
+              <td>0.003044</td>
+            </tr>
+            <tr>
+              <td>0.060</td>
+              <td>-0.004448</td>
+              <td>0.000776</td>
+              <td>0.811476</td>
+              <td>0.006919</td>
+              <td>0.001080</td>
+            </tr>
+            <tr>
+              <td>0.100</td>
+              <td>-0.006122</td>
+              <td>0.001844</td>
+              <td>0.689145</td>
+              <td>0.008101</td>
+              <td>0.000000</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="results">
+      <h2>XII. Empirical Results & Fault Recovery Analysis</h2>
+      
+      <figure>
+        <img src="file:///D:/webots%20files/controllers/soft_adaptive_controller/New%20folder/thesis_results.png" alt="Mathematical plots detailing lateral drift, control bias, and Jacobian estimation over time.">
+        <figcaption><b>Figure 1: Adaptive Control Telemetry.</b> The three panels represent the system's reaction to a catastrophic right-tendon failure at $T = 3.0s$. Top: The physical trajectory error. Middle: The controller's asymmetric bias injection. Bottom: The internal cognitive adaptation of the $J_{11}$ Jacobian gradient.</figcaption>
+      </figure>
+
+      <h3>Granular Event Breakdown ($T = 3.0s$)</h3>
+      <ul class="bullet-list">
+        <li><strong>The Fault Injection:</strong> At exactly 3.0 seconds, the right tendon displacement is hard-clamped to 0.0m. The morphological symmetry breaks, and the robot violently drifts off-course.</li>
+        <li><strong>The Cognitive Observer:</strong> The pre-fault Jacobian falsely predicts symmetric motion. When the drift spikes, the Broyden optimizer identifies the error and forces a massive re-calculation of the $J_{11}$ element, un-learning the symmetric physics.</li>
+        <li><strong>The Actuation Recovery:</strong> Armed with the mutated Jacobian matrix, the proportional controller injects a massive counter-bias into the surviving left cable, physically contorting the silicone back down to the target trajectory.</li>
+      </ul>
+    </section>
+
+    <section id="soft-hardware">
+      <h2>XIII. Soft Hardware Translation & Sim-to-Real Gap</h2>
+      <p>Bridging the sim-to-real gap for the continuum body requires specific hardware considerations regarding internal friction:</p>
+      <ul class="bullet-list">
+        <li><strong>Silicone Casting:</strong> Cast using Ecoflex 00-30 platinum-cure silicone to match the $E=10^5$ Pa Modulus.</li>
+        <li><strong>Tendon Friction:</strong> In SOFA, cables experience zero internal friction. In reality, PTFE (Teflon) tubes must be embedded around the core to minimize Coulomb friction against the Kevlar threads.</li>
+      </ul>
+    </section>
+
+    <section id="references">
+      <h2>XIV. References</h2>
+      <ul class="bullet-list" style="font-size: 1.05rem;">
+        <li>[1] Chen, F., et al., "A Generalized Adaptive Jacobian Controller for Soft Robots," <em>arXiv preprint</em>, 2024.</li>
+        <li>[2] Mo, X., et al., "Model-Based Control of a Continuum Manipulator with Online Jacobian Error Compensation," <em>PMC</em>, 2024.</li>
+        <li>[3] Chen, Y., et al., "AdapJ: An Adaptive Extended Jacobian Controller for Soft Manipulators," <em>IEEE Transactions on Mechatronics</em>, 2025.</li>
+        <li>[4] Coevoet, F., et al., "Software toolkit for modeling, simulation, and control of soft robots," <em>Advanced Robotics</em>, 2017.</li>
+        <li>[5] Li, J., et al., "Data-Driven Adaptive Jacobian Estimation for Uncalibrated Rigid Manipulators," <em>IEEE Transactions on Industrial Electronics</em>, 2023.</li>
+        <li>[6] Wang, H., et al., "Fault-Tolerant Kinematic Control of Redundant Manipulators via Adaptive Pseudo-Inverse Jacobians," 2022.</li>
+      </ul>
+    </section>
+
+    <section id="contributors">
+      <h2>XV. Project Contributors</h2>
+      <p>This project was developed as part of the <strong>22AIE214 - Artificial Intelligence & Robotics</strong> curriculum by the following engineering team:</p>
+      
+      <div class="team-grid">
+        <div class="team-member">
+          <h4>BURLA SURAJ</h4>
+          <p>cb.sc.u4aie24105</p>
+        </div>
+        <div class="team-member">
+          <h4>SAI KARTHIK</h4>
+          <p>cb.sc.u4aie24107</p>
+        </div>
+        <div class="team-member">
+          <h4>VIRINCHI</h4>
+          <p>cb.sc.u4aie24158</p>
+        </div>
+        <div class="team-member">
+          <h4>JATIN CHANDRA</h4>
+          <p>cb.sc.u4aie24162</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  <p>&copy; 2026 Virtual Lab 22AIE214. Built for rigorous engineering defense analysis.</p>
+</footer>
+
+</body>
+</html>
